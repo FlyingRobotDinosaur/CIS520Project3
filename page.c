@@ -165,7 +165,7 @@ page_out (struct page *p)
 			if (p->private == true)
 				{ok = swap_out(p);}
 			else
-			ok = file_write_at(p->file, p->frame->base, p->bytes, p->file_offset)
+			ok = file_write_at(p->file, p->frame->base, p->file_bytes, p->file_offset);
 		}
 		else  ok = true;
 	}
