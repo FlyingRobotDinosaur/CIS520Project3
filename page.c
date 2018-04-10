@@ -162,19 +162,13 @@ bool page_out (struct page *p)
 
   /* Write frame contents to disk if necessary. */
 	if(dirty)
-	{	
-		if (p->private == true)
 		{
-			ok = swap_out(p);
+			if (p->private == true)
+				{ok = swap_out(p);}
+			else
+			ok = file_write_at(p->file, p->frame->base, p->file_bytes, p->file_offset);
 		}
-		else if (p->private == false)
-		{
-			file_write(p->file, p->frame->base, p->file_bytes);
-			ok = true;
-		}
-		else return false;
-	}
-	else  ok = true;
+		else  ok = true;
 
 	if (ok == true)  // page successfully evicted, frees page's frame
 	  {
