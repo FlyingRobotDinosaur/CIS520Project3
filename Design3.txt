@@ -1,0 +1,141 @@
+		           +---------------------------+
+       	           |         CIS 520           |
+		           | PROJECT 3: Virtual Memory |
+		           |     DESIGN DOCUMENT       |
+		           +---------------------------+
+
+---- GROUP ----
+
+>> Fill in the names of your group members.
+
+Adam Herting
+William Yeager
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+			PAGE TABLE MANAGEMENT
+			=====================
+
+---- ALGORITHMS ----
+
+>> A1: In a few paragraphs, describe the existing code for locating the
+>> frame, if any, that contains the data of a given page.
+
+When a frame of memory needs to be loaded, the page_in() function finds page at the address.  From there do_page_in() is called on using the page as input, and if successful the page is given a frame, and the data from the page is copied to the frame.  The data is  from the swap, the file, or the frame receives an all-zero page.  
+
+---- SYNCHRONIZATION ----
+
+>> A2: When two user processes both need a new frame at the same time,
+>> how are races avoided?
+
+When a process tries to allocate a frame for a page, it first acquires the scan_lock, this lock prevents other processes from trying to acquire a frame while the first process is acquiring its frame.
+
+
+		       PAGING TO AND FROM DISK
+		       =======================
+
+---- ALGORITHMS ----
+
+>> B1: When a frame is required but none is free, some frame must be
+>> evicted.  Describe the algorithm used to choose a frame to evict.
+
+There is a loop that observes each frame to see if any are empty/available, and if the frame has a page it checks how recently the pages have been used/accessed.
+
+If a frame is not available but the page it holds has not been recently accessed, we can evict its page to make room for the new page.
+
+If a page occupying a frame is not NULL and it has not been recently accessed, then that page is paged out.  The page_out function separates the frame from that page.  Then the new page is given the frame.  
+
+>> B2: Explain your heuristic for deciding whether a page fault for an
+>> invalid virtual address should cause the stack to be extended into
+>> the page that faulted.
+
+If there is a page fault (page not in main memory), then we first check if the number of currently allocated bytes in the stack is not greater than the max stack limit.  This is done through an if statement that compares the current user thread's esp location off the PHYS_BASE, with the STACK_MAX - total size.  This lets us know that the stack can be extended. 
+
+Then it allocates new page to the stack with the given address.
+
+If there is a stack overflow, the stack has overflowed into the data segment.  One way to check is by looking at the magic value of the thread.
+
+			 MEMORY MAPPED FILES
+			 ===================
+
+---- DATA STRUCTURES ----
+
+>> C1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+There is the struct mapping which represents a the mapping of a region of memory to a file.
+struct mapping
+{
+	struct list_elem elem;		the list element for the mapping
+	int handle;			the identifier for the mapping	
+	struct file *file;		the file that is mapped
+	uint8_t *base;			the beginning of the location in memory where mapping occurs
+	size_t page_cnt;		the number of pages mapped by the mapping
+}
+
+
+the struct thread in thread.h is given a list called mappings that keeps track of all the memory mappings that the thread holds.  
+
+
+---- ALGORITHMS ----
+
+>> C2: Describe how memory mapped files integrate into your virtual
+>> memory subsystem.  Explain how the page fault and eviction
+>> processes differ between swap pages and other pages.
+
+Files can be directly mapped onto memory with mmap.  A new mapping is made for the thread running the process, the mapping is associated with a given file.  This mapping is added the list of mappings that the thread holds.  By using the length of the file,  pages are allocated in the vm, as many as it needs, moving down by the size of the file_offset and getting a new page for each until it reaches the end of the file size.
+
+page_for_addr tries to locate the page, if not found, it is a fault and extends the stack if possible so it can move it to memory. for a page fault the data might be in the file or in a swap slot.  swap slots are freed of their pages if the page in its slot is accessed, when swap in is called.
+
+When page_out() is called, a page is evicted. If the pages are dirty/modified they are written out to a swap slot. When a page is evicted, the page is swapped out to a swap slot.  The swap page previously in the swap slot must be swapped out. If swapped out, the data is written to the block. If the page evicted is unmodified, the data must be written back to the file to back up the data. 
+
+
+>> C3: Explain how you determine whether a new file mapping overlaps
+>> any existing segment.
+
+Look at the pages and see if there is already an association with that file.
+We must track what memory is used by the memory mapped files.  Mappings are created and given an address.  This address is the location/region of memory where the mapping starts.  Each page is allocated in virtual memory so that the address of the mapping corresponds the the virtual address of the pages.  Each page has an address where the previous page address ends.
+Because we allocate new pages we don't have to worry about overlapping the memory allocated to the other pages.  If it can't be done, not enough space, it is canceled.
+
+---- RATIONALE ----
+
+>> C4: Mappings created with "mmap" have similar semantics to those of
+>> data demand-paged from executables, except that "mmap" mappings are
+>> written back to their original files, not to swap.  This implies
+>> that much of their implementation can be shared.  Explain why your
+>> implementation either does or does not share much of the code for
+>> the two situations.
+
+We treat memory mappings as virtual pages, but it differs because for memory mappings it is always written back to the file instead of swapping. When a mapping for a file is created, pages are allocated for the file.  When pages are allocated and read-only is false, the bool private is set to true, meaning they will be swapped out. mmap sets the bool private to false for each of its pages so they will write back to the file.
+
+			   SURVEY QUESTIONS
+			   ================
+
+Answering these questions is optional, but it will help us improve the
+course in future quarters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the quarter.
+
+>> In your opinion, was this assignment, or any one of the three problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+
+>> Is there some particular fact or hint we should give students in
+>> future quarters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+
+>> Do you have any suggestions for the TAs to more effectively assist
+>> students, either for future quarters or the remaining projects?
+
+>> Any other comments?
