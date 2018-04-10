@@ -504,16 +504,30 @@ lookup_mapping (int handle)
 static void
 unmap (struct mapping *m) 
 {
-	int pages = m->page_cnt;
-	list_remove(&m->elem);
-	while (pages > 0)
+	struct thread *cur = thread_current();
+	int i, pages = m->page_cnt;
+	struct list_elem *e;
+
+	for (e = list_begin (&cur->mappings); e != list_end (&cur->mappings); e = list_next(e))
+    	 {
+       		if (e == m->elem)
+		{
+		list_remove (e);
+		}
+     	 }
+	
+	for (i = 0; i  <= pages; i++)
 	{
 	page_deallocate(m->base);
-	m->base = m->base + PGSIZE; 
-	pages--;	
+	m->base = m->base + PGSIZE;
 	}
+
+	lock_acquire (&fs_lock);
 	file_close(m->file);
+	lock_release (&fs_lock);
+
 	free(m);
+	
 }
  
 /* Mmap system call. */

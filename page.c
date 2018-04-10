@@ -37,14 +37,16 @@ void page_exit (void)
    or a null pointer if no such page exists.
    Allocates stack pages as necessary. */
 static struct page *
-
-page_for_addr (const void *address)
+page_for_addr (const void *address) 
 {
+	
   struct thread *cur = thread_current();
-  if (address < PHYS_BASE)
+  int ptr = PHYS_BASE - cur->user_esp;
+  if (address < PHYS_BASE) 
     {
       struct page p;
       struct hash_elem *e;
+	
 
       /* Find existing page. */
       p.addr = (void *) pg_round_down (address);
@@ -53,14 +55,13 @@ page_for_addr (const void *address)
         return hash_entry (e, struct page, hash_elem);
 
       /* No page.  Expand stack? */
-
-      	if( (PHYS_BASE - cur->user_esp) < STACK_MAX)
+	
+      	if( ptr < STACK_MAX)  // must also check if stack overflow has occurred. 
 	{
     struct page *expand = page_allocate(p.addr, false);
     ASSERT(cur->magic == THREAD_MAGIC); // Test for Stack Overflow
 		return expand;
 	}
-
 
     }
   return NULL;
@@ -160,19 +161,25 @@ bool page_out (struct page *p)
 	dirty = pagedir_is_dirty(cur->pagedir, p->addr);
 
   /* Write frame contents to disk if necessary. */
-
-		if(dirty)
+	if(dirty)
+	{	
+		if (p->private == true)
 		{
-			if (p->private == true)
-				{ok = swap_out(p);}
-			else
-			ok = file_write_at(p->file, p->frame->base, p->file_bytes, p->file_offset);
+			ok = swap_out(p);
 		}
-		else  ok = true;
+		else if (p->private == false)
+		{
+			file_write(p->file, p->frame->base, p->file_bytes);
+			ok = true;
+		}
+		else return false;
+	}
+	else  ok = true;
 
-	if (ok)  // page successfully evicted, frees page's frame
-	  {p->frame = NULL;}
-
+	if (ok == true)  // page successfully evicted, frees page's frame
+	  {
+		p->frame = NULL;
+	  }
   return ok;
 }
 
